@@ -9,7 +9,7 @@ import Foundation
 import UIKit
 
 public typealias AnimationCompletionHandler = (Bool) -> Void
-public class CircularProgressBarView: UIButton {
+public class CircularProgressView: UIControl {
     
     var completionHandler: AnimationCompletionHandler?
 
@@ -19,20 +19,109 @@ public class CircularProgressBarView: UIButton {
     private var startPoint = CGFloat(-Double.pi / 2)
     private var endPoint = CGFloat(3 * Double.pi / 2)
     
+    private let imageView: UIImageView = {
+        let imageView = UIImageView()
+        imageView.contentMode = .scaleAspectFit
+        return imageView
+    }()
+    
+    private let titleLabel: UILabel = {
+        let label = UILabel()
+        label.textAlignment = .center
+        label.textColor = .black
+        return label
+    }()
+    
+    @IBInspectable public var image: UIImage? {
+        didSet {
+            imageView.image = image
+        }
+    }
+    
+    @IBInspectable public var title: String? {
+        didSet {
+            titleLabel.text = title
+        }
+    }
+    
+    @IBInspectable public var imageTintColor: UIColor = .blue {
+        didSet {
+            imageView.tintColor = imageTintColor
+        }
+    }
+
+    @IBInspectable public var titleColor: UIColor = .black {
+        didSet {
+            titleLabel.textColor = titleColor
+        }
+    }
+
+    @IBInspectable public var titleFont: UIFont = UIFont.systemFont(ofSize: 12) {
+        didSet {
+            titleLabel.font = titleFont
+        }
+    }
+    
+    @IBInspectable public var imageHeight: CGFloat = 0.0 {
+        didSet {
+            updateImageSize()
+        }
+    }
+
+    @IBInspectable public var imageWidth: CGFloat = 0.0 {
+        didSet {
+            updateImageSize()
+        }
+    }
+  
+    required init?(coder aDecoder: NSCoder) {
+        super.init(coder: aDecoder)
+        setupUI()
+    }
+    
+    private func setupUI() {
+        addSubview(imageView)
+        addSubview(titleLabel)
+    }
+    
+    
     override init(frame: CGRect) {
         super.init(frame: frame)
+        setupUI()
     }
     
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
+    private func updateImageSize() {
+        let imageSize = CGSize(width: imageWidth, height: imageHeight)
+        imageView.frame = CGRect(x: (bounds.width - imageSize.width) / 2,
+                                 y: (bounds.height - imageSize.height) / 2,
+                                 width: imageSize.width,
+                                 height: imageSize.height)
     }
     
-    public func createCircularPath() {
+    public override func layoutSubviews() {
+        super.layoutSubviews()
+        
+        updateImageSize()
+        titleLabel.frame = CGRect(x: 0, y: bounds.height * 0.75, width: bounds.width, height: bounds.height * 0.25)
+        imageView.tintColor = imageTintColor
+        titleLabel.textColor = titleColor
+        titleLabel.font = titleFont
+    }
+    
+    public func setImage(_ image: UIImage?, withRenderingMode renderingMode: UIImage.RenderingMode) {
+        imageView.image = image?.withRenderingMode(renderingMode)
+    }
 
-        let circularPath = UIBezierPath(arcCenter: CGPoint(x: frame.size.width / 2.0, y: frame.size.height / 2.0), radius: 12, startAngle: startPoint, endAngle: endPoint, clockwise: true)
+    public func setTitleText(_ text: String?, withFont font: UIFont) {
+        titleLabel.text = text
+        titleLabel.font = font
+    }
+    
+    public func createCircularPath(radius: CGFloat, lineWidth: CGFloat, strokeInitialColor: UIColor, strokeFillColor: UIColor) {
+
+        let circularPath = UIBezierPath(arcCenter: CGPoint(x: frame.size.width / 2.0, y: frame.size.height / 2.0), radius: radius, startAngle: startPoint, endAngle: endPoint, clockwise: true)
         
         circleLayer.path = circularPath.cgPath
-        setButtonImage(systemImage: "play.fill", size: 15)
         circleLayer.fillColor = UIColor.clear.cgColor
         circleLayer.lineCap = .round
         circleLayer.lineWidth = 20.0
@@ -43,20 +132,18 @@ public class CircularProgressBarView: UIButton {
         initialProgressLayer.path = circularPath.cgPath
         initialProgressLayer.fillColor = UIColor.clear.cgColor
         initialProgressLayer.lineCap = .round
-        initialProgressLayer.lineWidth = 3.0
+        initialProgressLayer.lineWidth = lineWidth
         initialProgressLayer.strokeEnd = 0
-        initialProgressLayer.strokeColor = UIColor.lightGray.cgColor
+        initialProgressLayer.strokeColor = strokeInitialColor.cgColor//UIColor.lightGray.cgColor
         layer.addSublayer(initialProgressLayer)
         subProgressAnimation()
         
         progressLayer.path = circularPath.cgPath
-        // ui edits
         progressLayer.fillColor = UIColor.clear.cgColor
         progressLayer.lineCap = .round
-        progressLayer.lineWidth = 3.0
+        progressLayer.lineWidth = lineWidth
         progressLayer.strokeEnd = 0
-        progressLayer.strokeColor = UIColor.systemBlue.cgColor
-        // added progressLayer to layer
+        progressLayer.strokeColor = strokeFillColor.cgColor//UIColor.systemBlue.cgColor
         layer.addSublayer(progressLayer)
     }
     
@@ -94,16 +181,10 @@ public class CircularProgressBarView: UIButton {
         }
         return false
     }
-    
-    public func setButtonImage(systemImage: String, size: Int) {
-        let buttonConfig = UIImage.SymbolConfiguration(pointSize: 15, weight: .regular, scale: .small)
-        let stopImage = UIImage(systemName: systemImage, withConfiguration: buttonConfig)
-        self.setImage(stopImage, for: .normal)
-    }
 }
 
 
-extension CircularProgressBarView: CAAnimationDelegate {
+extension CircularProgressView: CAAnimationDelegate {
     public func animationDidStop(_ anim: CAAnimation, finished flag: Bool) {
         if flag {
             completionHandler?(true)
